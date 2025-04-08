@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>No Words Bar Graph</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: black;
+      color: white;
+    }
+    .bar {
+      fill: steelblue;
+    }
+    .bar:hover {
+      fill: darkorange;
+    }
+    .axis-label {
+      font-size: 12px;
+    }
+    #filter {
+      margin: 20px 0;
+    }
+    .middle {
+        display: flex;
+        justify-content: center;
+    }
+    .bar {
+        fill: crimson;
+    }
+    .bar:hover {
+        fill: white;
+    }
+  </style>
+</head>
+<body>
+    <h1 class="middle">The Bureaucracy of No</h1>
+    <h3 class="middle">How Federal Regulation Says You Can't</h3>
+    <div class="middle">
+        <label for="filter">After analyzing nearly 100,000,000 words of federal regulation, here are the most common ways it tells you no</label> 
+    </div>
+    <div class="middle">
+        <select id="filter"></select>
+    </div>
+    <div class="middle">
+        <svg width="1000" height="600"></svg>
+    </div>
+  <script>
+    
+
+    const svg = d3.select("svg");
+    const margin = { top: 40, right: 30, bottom: 150, left: 60 };
+    const width = +svg.attr("width") - margin.left - margin.right;
+    const height = +svg.attr("height") - margin.top - margin.bottom;
+    const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+    const x = d3.scaleBand().padding(0.1).rangeRound([0, width]);
+    const y = d3.scaleLinear().rangeRound([height, 0]);
+
+    const xAxis = g.append("g").attr("transform", `translate(0,${height})`);
+    const yAxis = g.append("g");
+
+    const filterDropdown = d3.select("#filter");
+
+    d3.json("output.json").then(data => {
+      const names = data.map(d => d.name);
+      filterDropdown.selectAll("option")
+        .data(names)
+        .enter()
+        .append("option")
+        .text(d => d);
+      filterDropdown.property("value", "All Federal Regulation");
+
+      updateChart(data[49]);
+
+      filterDropdown.on("change", function() {
+        const selected = this.value;
+        const filtered = data.find(d => d.name === selected);
+        updateChart(filtered);
+      }).console.error();;
+
+      function updateChart(datum) {
+        const counts = Object.entries(datum.no_word_counts).map(([word, count]) => ({ word, count }));
+        counts.sort((a, b) => a.count - b.count);
+
+        x.domain(counts.map(d => d.word));
+        y.domain([0, d3.max(counts, d => d.count)]);
+
+        xAxis.transition().call(d3.axisBottom(x))
+          .selectAll("text")
+          .attr("transform", "rotate(-45)")
+          .style("text-anchor", "end");
+
+        yAxis.transition().call(d3.axisLeft(y));
+
+        const bars = g.selectAll(".bar").data(counts, d => d.word);
+
+        bars.enter()
+          .append("rect")
+          .attr("class", "bar")
+          .attr("x", d => x(d.word))
+          .attr("y", height)
+          .attr("width", x.bandwidth())
+          .attr("height", 0)
+          .merge(bars)
+          .transition()
+          .duration(800)
+          .attr("x", d => x(d.word))
+          .attr("y", d => y(d.count))
+          .attr("width", x.bandwidth())
+          .attr("height", d => height - y(d.count));
+
+        bars.exit().remove();
+      }
+    });
+  </script>
+</body>
+</html>
